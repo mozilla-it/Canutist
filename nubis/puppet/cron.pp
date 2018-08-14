@@ -2,17 +2,21 @@ $dashboard_command = "nubis-cron ${project_name}-dashboard /var/www/${project_na
 $bztriage_command = "nubis-cron ${project_name}-bztriage /var/www/${project_name}/bz-triage.py > /var/log/bztriage-cron.log 2>&1"
 $bznag_command = "nubis-cron ${project_name}-bznag /var/www/${project_name}/bznag.py > /var/log/bznag-cron.log 2>&1"
 
-# Run it once on boot
-cron { "${project_name}-dashboard-onboot":
-  command => $dashboard_command,
-  user    => $apache::params::user,
-  special => 'reboot',
-}
+$triagebot_cron_enabled = false
 
-# Then every hour
-cron::hourly { "${project_name}-dashboard":
-  user    => $apache::params::user,
-  command => $dashboard_command,
+# Run it once on boot
+if $triagebot_cron_enabled {
+  cron { "${project_name}-dashboard-onboot":
+    command => $dashboard_command,
+    user    => $apache::params::user,
+    special => 'reboot',
+  }
+
+  # Then every hour
+  cron::hourly { "${project_name}-dashboard":
+    user    => $apache::params::user,
+    command => $dashboard_command,
+  }
 }
 
 file { '/var/log/bzdashboard-cron.log':
@@ -25,10 +29,12 @@ file { '/var/log/bzdashboard-cron.log':
 }
 
 # 3am job
-cron::daily { "${project_name}-bztriage":
-  hour    => '3',
-  user    => $apache::params::user,
-  command => $bztriage_command,
+if $triagebot_cron_enabled {
+  cron::daily { "${project_name}-bztriage":
+    hour    => '3',
+    user    => $apache::params::user,
+    command => $bztriage_command,
+  }
 }
 
 file { '/var/log/bztriage-cron.log':
@@ -39,12 +45,13 @@ file { '/var/log/bztriage-cron.log':
     Class['nubis_apache'],
   ],
 }
-
+if $triagebot_cron_enabled {
 # 4am job
-cron::daily { "${project_name}-bznag":
-  hour    => '4',
-  user    => $apache::params::user,
-  command => $bznag_command,
+  cron::daily { "${project_name}-bznag":
+    hour    => '4',
+    user    => $apache::params::user,
+    command => $bznag_command,
+  }
 }
 
 file { '/var/log/bznag-cron.log':
